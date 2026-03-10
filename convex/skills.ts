@@ -152,6 +152,15 @@ const SORT_INDEXES = {
   installs: 'by_active_stats_installs_all_time',
 } as const
 
+const NONSUSPICIOUS_SORT_INDEXES = {
+  newest: 'by_nonsuspicious_created',
+  updated: 'by_nonsuspicious_updated',
+  name: 'by_nonsuspicious_name',
+  downloads: 'by_nonsuspicious_downloads',
+  stars: 'by_nonsuspicious_stars',
+  installs: 'by_nonsuspicious_installs',
+} as const
+
 function isSkillVersionId(
   value: Id<'skillVersions'> | null | undefined,
 ): value is Id<'skillVersions'> {
@@ -1836,7 +1845,18 @@ export const listPublicPageV2 = query({
     const dir = args.dir ?? (sort === 'name' ? 'asc' : 'desc')
     const { numItems, cursor: initialCursor } = normalizePublicListPagination(args.paginationOpts)
 
+    const useNonsuspiciousIndex = args.nonSuspiciousOnly && !args.highlightedOnly
+
     const runPaginate = (cursor: string | null) => {
+      if (useNonsuspiciousIndex) {
+        return ctx.db
+          .query('skills')
+          .withIndex(NONSUSPICIOUS_SORT_INDEXES[sort], (q) =>
+            q.eq('softDeletedAt', undefined).eq('isSuspicious', false),
+          )
+          .order(dir)
+          .paginate({ cursor, numItems })
+      }
       return ctx.db
         .query('skills')
         .withIndex(SORT_INDEXES[sort], (q) => q.eq('softDeletedAt', undefined))
@@ -1844,16 +1864,26 @@ export const listPublicPageV2 = query({
         .paginate({ cursor, numItems })
     }
 
-    // Use the index to filter out soft-deleted skills at query time.
-    // softDeletedAt === undefined means active (non-deleted) skills only.
-    // When post-pagination filters are active, skip empty filtered pages so clients
-    // don't bounce between CanLoadMore/LoadingMore with no visible new rows.
-    // `isSuspicious` is still backfilled on existing rows, so mixing cursor families
-    // (`by_nonsuspicious_*` vs base sort indexes) can skip rows or duplicate pages.
-    // Stay on the base sort index and filter in JS until the backfill is complete.
     let result = await paginateWithStaleCursorRecovery(runPaginate, initialCursor)
-    let filteredPage = filterPublicSkillPage(result.page, args)
-    while ((args.nonSuspiciousOnly || args.highlightedOnly) && filteredPage.length === 0 && !result.isDone) {
+    let filteredPage = useNonsuspiciousIndex
+      ? result.page
+      : filterPublicSkillPage(result.page, args)
+
+    // Backfill safety net: if the nonsuspicious index returns an empty page
+    // but isn't done, fall back to base index + JS filter for this page.
+    if (useNonsuspiciousIndex && filteredPage.length === 0 && !result.isDone) {
+      const fallbackPaginate = (cursor: string | null) =>
+        ctx.db
+          .query('skills')
+          .withIndex(SORT_INDEXES[sort], (q) => q.eq('softDeletedAt', undefined))
+          .order(dir)
+          .paginate({ cursor, numItems })
+      result = await fallbackPaginate(initialCursor)
+      filteredPage = filterPublicSkillPage(result.page, args)
+    }
+
+    // When highlightedOnly, skip empty filtered pages so clients don't bounce.
+    while (args.highlightedOnly && filteredPage.length === 0 && !result.isDone) {
       result = await runPaginate(result.continueCursor)
       filteredPage = filterPublicSkillPage(result.page, args)
     }
