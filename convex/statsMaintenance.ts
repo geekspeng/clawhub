@@ -5,6 +5,7 @@ import type { ActionCtx } from './_generated/server'
 import { internalAction, internalMutation, internalQuery } from './functions'
 import {
   countPublicSkillsForGlobalStats,
+  isPublicSkillDoc,
   setGlobalPublicSkillsCount,
 } from './lib/globalStats'
 
@@ -304,6 +305,67 @@ function clampInt(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
+/**
+ * Count a page of skillSearchDigest docs and return the partial public count.
+ * Each query runs in its own transaction (~1000 docs, ~900 KB), well under limits.
+ */
+export const countPublicDigestPageInternal = internalQuery({
+  args: { cursor: v.optional(v.string()), pageSize: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const pageSize = clampInt(args.pageSize ?? 1000, 100, 2000)
+    const { page, isDone, continueCursor } = await ctx.db
+      .query('skillSearchDigest')
+      .withIndex('by_active_updated', (q) => q.eq('softDeletedAt', undefined))
+      .paginate({ cursor: args.cursor ?? null, numItems: pageSize })
+
+    let count = 0
+    for (const digest of page) {
+      if (isPublicSkillDoc(digest)) count++
+    }
+    return { count, isDone, cursor: continueCursor }
+  },
+})
+
+/** Write the reconciled global stats count. */
+export const writeGlobalStatsInternal = internalMutation({
+  args: { count: v.number() },
+  handler: async (ctx, args) => {
+    await setGlobalPublicSkillsCount(ctx, args.count)
+  },
+})
+
+/**
+ * Action-based global stats update that splits the full table scan across
+ * multiple queries (each in its own transaction) to avoid the bytes-read limit.
+ * Replaces the old single-mutation version.
+ */
+export const updateGlobalStatsAction = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    let total = 0
+    let cursor: string | undefined
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const result = (await ctx.runQuery(
+        internal.statsMaintenance.countPublicDigestPageInternal,
+        { cursor, pageSize: 1000 },
+      )) as { count: number; isDone: boolean; cursor: string }
+
+      total += result.count
+      if (result.isDone) break
+      cursor = result.cursor
+    }
+
+    await ctx.runMutation(internal.statsMaintenance.writeGlobalStatsInternal, { count: total })
+    return { count: total }
+  },
+})
+
+/**
+ * @deprecated Use updateGlobalStatsAction instead.
+ * Kept as a manual emergency fallback only — do not re-add to crons.
+ */
 export const updateGlobalStatsInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
