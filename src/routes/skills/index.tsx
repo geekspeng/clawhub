@@ -59,7 +59,6 @@ export function SkillsIndex() {
     navigate,
     search,
     searchInputRef,
-    useV4: true,
   })
 
   return (

@@ -30,12 +30,10 @@ export function useSkillsBrowseModel({
   search,
   navigate,
   searchInputRef,
-  useV4 = false,
 }: {
   search: SkillsSearchState
   navigate: SkillsNavigate
   searchInputRef: RefObject<HTMLInputElement | null>
-  useV4?: boolean
 }) {
   const [query, setQuery] = useState(search.q ?? '')
   const [searchResults, setSearchResults] = useState<Array<SkillSearchEntry>>([])
@@ -72,33 +70,19 @@ export function useSkillsBrowseModel({
   const fetchPage = useCallback(
     async (cursor: string | null, generation: number) => {
       try {
-        if (useV4) {
-          const result = await convexHttp.query(api.skills.listPublicPageV4, {
-            cursor: cursor ?? undefined,
-            numItems: pageSize,
-            sort: listSort,
-            dir,
-            highlightedOnly,
-            nonSuspiciousOnly,
-          })
-          if (generation !== fetchGeneration.current) return
-          setListResults((prev) => (cursor ? [...prev, ...result.page] : result.page))
-          const canAdvance = result.hasMore && result.nextCursor != null
-          setListCursor(canAdvance ? result.nextCursor : null)
-          setListStatus(canAdvance ? 'idle' : 'done')
-        } else {
-          const result = await convexHttp.query(api.skills.listPublicPageV3, {
-            paginationOpts: { cursor, numItems: pageSize },
-            sort: listSort,
-            dir,
-            highlightedOnly,
-            nonSuspiciousOnly,
-          })
-          if (generation !== fetchGeneration.current) return
-          setListResults((prev) => (cursor ? [...prev, ...result.page] : result.page))
-          setListCursor(result.isDone ? null : result.continueCursor)
-          setListStatus(result.isDone ? 'done' : 'idle')
-        }
+        const result = await convexHttp.query(api.skills.listPublicPageV4, {
+          cursor: cursor ?? undefined,
+          numItems: pageSize,
+          sort: listSort,
+          dir,
+          highlightedOnly,
+          nonSuspiciousOnly,
+        })
+        if (generation !== fetchGeneration.current) return
+        setListResults((prev) => (cursor ? [...prev, ...result.page] : result.page))
+        const canAdvance = result.hasMore && result.nextCursor != null
+        setListCursor(canAdvance ? result.nextCursor : null)
+        setListStatus(canAdvance ? 'idle' : 'done')
       } catch (err) {
         if (generation !== fetchGeneration.current) return
         console.error('Failed to fetch skills page:', err)
@@ -106,7 +90,7 @@ export function useSkillsBrowseModel({
         setListStatus(cursor ? 'idle' : 'done')
       }
     },
-    [listSort, dir, highlightedOnly, nonSuspiciousOnly, useV4],
+    [listSort, dir, highlightedOnly, nonSuspiciousOnly],
   )
 
   // Reset and fetch first page when sort/dir/filters change
