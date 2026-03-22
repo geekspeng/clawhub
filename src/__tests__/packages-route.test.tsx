@@ -14,6 +14,10 @@ let loaderDataMock: {
     family: "skill" | "code-plugin" | "bundle-plugin";
     channel: "official" | "community" | "private";
     isOfficial: boolean;
+    executesCode?: boolean;
+    summary?: string | null;
+    ownerHandle?: string | null;
+    latestVersion?: string | null;
     createdAt: number;
     updatedAt: number;
   }>;
@@ -92,6 +96,7 @@ describe("packages route", () => {
           family: "code-plugin",
           channel: "community",
           isOfficial: false,
+          executesCode: true,
           createdAt: 1,
           updatedAt: 1,
         },
@@ -113,5 +118,30 @@ describe("packages route", () => {
       family: "code-plugin",
       cursor: "cursor:next",
     });
+  });
+
+  it("labels skill entries as skills in the browse grid", async () => {
+    loaderDataMock = {
+      items: [
+        {
+          name: "demo-skill",
+          displayName: "Demo Skill",
+          family: "skill",
+          channel: "community",
+          isOfficial: false,
+          executesCode: false,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      nextCursor: null,
+    };
+    const route = await loadRoute();
+    const Component = route.__config.component as ComponentType;
+
+    render(<Component />);
+
+    expect(screen.getAllByText("Skill")).toHaveLength(2);
+    expect(screen.queryByText("Bundle only")).toBeNull();
   });
 });

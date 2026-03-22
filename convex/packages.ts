@@ -776,7 +776,7 @@ export const insertReleaseInternal = internalMutation({
 
     await ctx.db.patch(pkgId, {
       displayName: args.displayName,
-      summary: args.summary,
+      summary: shouldPromoteLatest ? args.summary : pkg.summary,
       sourceRepo: args.sourceRepo,
       runtimeId: args.runtimeId,
       channel: nextChannel,

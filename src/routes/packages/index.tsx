@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { fetchPackages, type PackageListItem } from "../../lib/packageApi";
+import { familyLabel, packageCapabilityLabel } from "../../lib/packageLabels";
 
 type PackageSearchState = {
   q?: string;
@@ -55,17 +56,6 @@ export const Route = createFileRoute("/packages/")({
   },
   component: PackagesIndex,
 });
-
-function familyLabel(family: PackageListItem["family"]) {
-  switch (family) {
-    case "code-plugin":
-      return "Code Plugin";
-    case "bundle-plugin":
-      return "Bundle Plugin";
-    default:
-      return "Skill";
-  }
-}
 
 export function PackagesIndex() {
   const search = Route.useSearch();
@@ -182,7 +172,7 @@ export function PackagesIndex() {
                 <div className="skill-card-tags">
                   <span className="tag">{familyLabel(item.family)}</span>
                   <span className={`tag ${item.executesCode ? "tag-accent" : ""}`}>
-                    {item.executesCode ? "Executes code" : "Bundle only"}
+                    {packageCapabilityLabel(item.family, item.executesCode)}
                   </span>
                   {item.isOfficial ? <span className="tag">Official</span> : null}
                   {item.verificationTier ? <span className="tag">{item.verificationTier}</span> : null}

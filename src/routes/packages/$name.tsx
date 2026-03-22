@@ -9,6 +9,7 @@ import {
   type PackageDetailResponse,
   type PackageVersionDetail,
 } from "../../lib/packageApi";
+import { familyLabel, packageCapabilityLabel } from "../../lib/packageLabels";
 
 type PackageDetailLoaderData = {
   detail: PackageDetailResponse;
@@ -68,9 +69,9 @@ function PackageDetailRoute() {
       <div className="skill-detail-stack">
         <section className="card">
           <div className="skill-card-tags" style={{ marginBottom: 12 }}>
-            <span className="tag">{pkg.family}</span>
+            <span className="tag">{familyLabel(pkg.family)}</span>
             <span className={`tag ${pkg.capabilities?.executesCode ? "tag-accent" : ""}`}>
-              {pkg.capabilities?.executesCode ? "Executes code" : "Bundle only"}
+              {packageCapabilityLabel(pkg.family, pkg.capabilities?.executesCode)}
             </span>
             <span className="tag">{pkg.channel}</span>
             {pkg.isOfficial ? <span className="tag">Official</span> : null}

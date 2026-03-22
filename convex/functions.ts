@@ -1,6 +1,6 @@
 import { customCtx, customMutation } from "convex-helpers/server/customFunctions";
 import { Triggers } from "convex-helpers/server/triggers";
-import type { DataModel } from "./_generated/dataModel";
+import type { DataModel, Doc, Id } from "./_generated/dataModel";
 import {
   mutation as rawMutation,
   internalMutation as rawInternalMutation,
@@ -10,6 +10,7 @@ import {
   internalAction,
   httpAction,
 } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import {
   extractPackageDigestFields,
   upsertPackageSearchDigest,
@@ -17,6 +18,49 @@ import {
 import { extractDigestFields, upsertSkillSearchDigest } from "./lib/skillSearchDigest";
 
 const triggers = new Triggers<DataModel>();
+
+type PackageDigestSyncCtx = Pick<MutationCtx, "db">;
+
+async function syncPackageSearchDigest(
+  ctx: PackageDigestSyncCtx,
+  pkg: Doc<"packages"> | null | undefined,
+) {
+  if (!pkg) return;
+  const latestRelease = pkg.latestReleaseId ? await ctx.db.get(pkg.latestReleaseId) : null;
+  const fields = extractPackageDigestFields(pkg);
+  const owner = await ctx.db.get(pkg.ownerUserId);
+  await upsertPackageSearchDigest(ctx, {
+    ...fields,
+    latestVersion:
+      latestRelease &&
+      typeof latestRelease === "object" &&
+      latestRelease &&
+      "softDeletedAt" in latestRelease &&
+      "version" in latestRelease &&
+      !latestRelease.softDeletedAt
+        ? latestRelease.version
+        : undefined,
+    ownerHandle:
+      owner &&
+      typeof owner === "object" &&
+      owner &&
+      !("deletedAt" in owner && owner.deletedAt) &&
+      !("deactivatedAt" in owner && owner.deactivatedAt) &&
+      "handle" in owner
+        ? ((owner.handle as string | undefined) ?? "")
+        : "",
+  });
+}
+
+export async function syncPackageSearchDigestForPackageId(
+  ctx: PackageDigestSyncCtx,
+  packageId: Id<"packages"> | null | undefined,
+) {
+  if (!packageId) return;
+  const pkg = await ctx.db.get(packageId);
+  if (!pkg) return;
+  await syncPackageSearchDigest(ctx, pkg);
+}
 
 triggers.register("skills", async (ctx, change) => {
   if (change.operation === "delete") {
@@ -53,12 +97,17 @@ triggers.register("packages", async (ctx, change) => {
     return;
   }
 
-  const fields = extractPackageDigestFields(change.newDoc);
-  const owner = await ctx.db.get(change.newDoc.ownerUserId);
-  await upsertPackageSearchDigest(ctx, {
-    ...fields,
-    ownerHandle: owner && !owner.deletedAt && !owner.deactivatedAt ? (owner.handle ?? "") : "",
-  });
+  await syncPackageSearchDigest(ctx, change.newDoc);
+});
+
+triggers.register("packageReleases", async (ctx, change) => {
+  if (change.operation === "insert") return;
+  if (change.operation === "update" && change.oldDoc.softDeletedAt === change.newDoc.softDeletedAt) {
+    return;
+  }
+  const packageId =
+    change.operation === "delete" ? change.oldDoc.packageId : change.newDoc.packageId;
+  await syncPackageSearchDigestForPackageId(ctx, packageId);
 });
 
 export const mutation = customMutation(rawMutation, customCtx(triggers.wrapDB));

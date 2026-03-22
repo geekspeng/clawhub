@@ -785,6 +785,37 @@ describe("packages public queries", () => {
     );
   });
 
+  it("keeps package summary pinned to the promoted release for non-latest publishes", async () => {
+    const ctx = makeInsertReleaseCtx(
+      makePackageDoc({
+        summary: "latest summary",
+        tags: { latest: "packageReleases:demo-1" },
+        latestReleaseId: "packageReleases:demo-1",
+        stats: { downloads: 0, installs: 0, stars: 0, versions: 1 },
+      }),
+    );
+
+    await insertReleaseInternalHandler(ctx, {
+      userId: "users:owner",
+      name: "demo-plugin",
+      displayName: "Demo Plugin",
+      family: "code-plugin",
+      version: "0.9.9",
+      changelog: "branch patch",
+      tags: ["legacy"],
+      summary: "legacy branch summary",
+      files: [],
+      integritySha256: "abc123",
+    });
+
+    expect(ctx.patch).toHaveBeenCalledWith(
+      "packages:demo",
+      expect.objectContaining({
+        summary: "latest summary",
+      }),
+    );
+  });
+
   it("removes moved dist-tags from older package releases", async () => {
     const olderRelease = makeReleaseDoc({
       _id: "packageReleases:old",
