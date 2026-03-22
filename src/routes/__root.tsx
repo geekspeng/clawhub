@@ -1,23 +1,12 @@
 import { createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { Analytics } from "@vercel/analytics/react";
-import { lazy, Suspense } from "react";
 import { AppProviders } from "../components/AppProviders";
 import { ClientOnly } from "../components/ClientOnly";
 import { DeploymentDriftBanner } from "../components/DeploymentDriftBanner";
 import { Footer } from "../components/Footer";
 import Header from "../components/Header";
-import { isDevRuntime } from "../lib/runtimeEnv";
 import { getSiteDescription, getSiteMode, getSiteName, getSiteUrlForMode } from "../lib/site";
 import appCss from "../styles.css?url";
-
-const TanStackDevtools = lazy(() =>
-  import("@tanstack/react-devtools").then((module) => ({ default: module.TanStackDevtools })),
-);
-const TanStackRouterDevtoolsPanel = lazy(() =>
-  import("@tanstack/react-router-devtools").then((module) => ({
-    default: module.TanStackRouterDevtoolsPanel,
-  })),
-);
 
 export const Route = createRootRoute({
   head: () => {
@@ -126,21 +115,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           </div>
           <ClientOnly>
             <Analytics />
-            {isDevRuntime() ? (
-              <Suspense fallback={null}>
-                <TanStackDevtools
-                  config={{
-                    position: "bottom-right",
-                  }}
-                  plugins={[
-                    {
-                      name: "Tanstack Router",
-                      render: <TanStackRouterDevtoolsPanel />,
-                    },
-                  ]}
-                />
-              </Suspense>
-            ) : null}
           </ClientOnly>
         </AppProviders>
         <Scripts />
