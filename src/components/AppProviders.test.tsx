@@ -1,19 +1,16 @@
 /* @vitest-environment jsdom */
 import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setPackageApiAuthToken } from "../lib/packageApi";
 import { getAuthErrorSnapshot, clearAuthError } from "../lib/useAuthError";
-import { AppProviders, AuthCodeHandler } from "./AppProviders";
+import { AuthCodeHandler } from "./AppProviders";
 
 const signInMock = vi.fn();
-let authTokenMock: string | null = null;
 
 vi.mock("@convex-dev/auth/react", () => ({
   ConvexAuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useAuthActions: () => ({
     signIn: signInMock,
   }),
-  useAuthToken: () => authTokenMock,
 }));
 
 vi.mock("../convex/client", () => ({
@@ -27,8 +24,6 @@ vi.mock("./UserBootstrap", () => ({
 describe("AuthCodeHandler", () => {
   beforeEach(() => {
     signInMock.mockReset();
-    authTokenMock = null;
-    setPackageApiAuthToken(null);
     clearAuthError();
     window.history.replaceState(null, "", "/sign-in");
   });
@@ -75,35 +70,5 @@ describe("AuthCodeHandler", () => {
     await waitFor(() => {
       expect(getAuthErrorSnapshot()).toBe("Sign in failed. Please try again.");
     });
-  });
-
-  it("bridges the current auth token into package API requests", async () => {
-    authTokenMock = "jwt-bridge";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ package: null, owner: null }), { status: 200 }),
-    );
-    window.history.replaceState(null, "", "/plugins/%40demo%2Fprivate-plugin");
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { origin: "https://app.example", href: "https://app.example/plugins/%40demo%2Fprivate-plugin" },
-    });
-
-    render(
-      <AppProviders>
-        <div>child</div>
-      </AppProviders>,
-    );
-
-    const { fetchPackageDetail } = await import("../lib/packageApi");
-    await fetchPackageDetail("@demo/private-plugin");
-
-    const [, requestInit] = fetchMock.mock.calls[0] ?? [];
-    expect(requestInit).toEqual(
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          authorization: "Bearer jwt-bridge",
-        }),
-      }),
-    );
   });
 });

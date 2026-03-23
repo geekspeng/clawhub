@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,14 +51,6 @@ let loaderDataMock: LoaderDataMock = {
   version: null,
   readme: null as string | null,
 };
-let authStatusMock: { isAuthenticated: boolean; isLoading: boolean; me: { _id: string } | null } = {
-  isAuthenticated: false,
-  isLoading: false,
-  me: null,
-};
-const fetchPackageDetailMock = vi.fn();
-const fetchPackageReadmeMock = vi.fn();
-const fetchPackageVersionMock = vi.fn();
 
 vi.mock("@tanstack/react-router", () => ({
   createFileRoute:
@@ -75,19 +67,12 @@ vi.mock("@tanstack/react-router", () => ({
 }));
 
 vi.mock("../lib/packageApi", () => ({
-  fetchPackageDetail: (...args: Parameters<typeof fetchPackageDetailMock>) =>
-    fetchPackageDetailMock(...args),
-  fetchPackageReadme: (...args: Parameters<typeof fetchPackageReadmeMock>) =>
-    fetchPackageReadmeMock(...args),
-  fetchPackageVersion: (...args: Parameters<typeof fetchPackageVersionMock>) =>
-    fetchPackageVersionMock(...args),
+  fetchPackageDetail: vi.fn(),
+  fetchPackageReadme: vi.fn(),
+  fetchPackageVersion: vi.fn(),
   getPackageDownloadPath: vi.fn((name: string, version?: string | null) =>
     version ? `/api/v1/packages/${name}/download?version=${version}` : `/api/v1/packages/${name}/download`,
   ),
-}));
-
-vi.mock("../lib/useAuthStatus", () => ({
-  useAuthStatus: () => authStatusMock,
 }));
 
 async function loadRoute() {
@@ -101,14 +86,6 @@ async function loadRoute() {
 describe("plugin detail route", () => {
   beforeEach(() => {
     paramsMock = { name: "demo-plugin" };
-    authStatusMock = {
-      isAuthenticated: false,
-      isLoading: false,
-      me: null,
-    };
-    fetchPackageDetailMock.mockReset();
-    fetchPackageReadmeMock.mockReset();
-    fetchPackageVersionMock.mockReset();
     loaderDataMock = {
       detail: {
         package: {
@@ -141,80 +118,5 @@ describe("plugin detail route", () => {
 
     expect(screen.getByText("No latest tag")).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Download zip" })).toBeNull();
-  });
-
-  it("shows an access check while auth is still resolving and the loader has no package", async () => {
-    authStatusMock = {
-      isAuthenticated: false,
-      isLoading: true,
-      me: null,
-    };
-    loaderDataMock = {
-      detail: { package: null, owner: null },
-      version: null,
-      readme: null,
-    };
-    const route = await loadRoute();
-    const Component = route.__config.component as ComponentType;
-
-    render(<Component />);
-
-    expect(screen.getByText("Checking plugin access…")).toBeTruthy();
-  });
-
-  it("recovers owner-visible plugin detail on the client after auth resolves", async () => {
-    authStatusMock = {
-      isAuthenticated: true,
-      isLoading: false,
-      me: { _id: "users:owner" },
-    };
-    loaderDataMock = {
-      detail: { package: null, owner: null },
-      version: null,
-      readme: null,
-    };
-    fetchPackageDetailMock.mockResolvedValue({
-      package: {
-        name: "demo-plugin",
-        displayName: "Recovered Plugin",
-        family: "code-plugin",
-        channel: "community",
-        isOfficial: false,
-        summary: "Recovered summary",
-        latestVersion: "1.2.3",
-        createdAt: 1,
-        updatedAt: 2,
-        tags: {},
-        compatibility: null,
-        capabilities: { executesCode: true, capabilityTags: ["tools"] },
-        verification: null,
-      },
-      owner: null,
-    });
-    fetchPackageVersionMock.mockResolvedValue({
-      package: {
-        name: "demo-plugin",
-        displayName: "Recovered Plugin",
-        family: "code-plugin",
-      },
-      version: {
-        version: "1.2.3",
-        createdAt: 1,
-        changelog: "Recovered",
-        files: [],
-      },
-    });
-    fetchPackageReadmeMock.mockResolvedValue("# Recovered");
-    const route = await loadRoute();
-    const Component = route.__config.component as ComponentType;
-
-    render(<Component />);
-
-    await waitFor(() => {
-      expect(screen.getByText("Recovered Plugin")).toBeTruthy();
-    });
-    expect(fetchPackageDetailMock).toHaveBeenCalledWith("demo-plugin");
-    expect(fetchPackageVersionMock).toHaveBeenCalledWith("demo-plugin", "1.2.3");
-    expect(fetchPackageReadmeMock).toHaveBeenCalledWith("demo-plugin", "1.2.3");
   });
 });

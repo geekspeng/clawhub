@@ -1,8 +1,7 @@
-import { ConvexAuthProvider, useAuthActions, useAuthToken } from "@convex-dev/auth/react";
+import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
 import { useEffect, useRef } from "react";
 import { convex } from "../convex/client";
 import { getUserFacingConvexError } from "../lib/convexError";
-import { setPackageApiAuthToken } from "../lib/packageApi";
 import { clearAuthError, setAuthError } from "../lib/useAuthError";
 import { UserBootstrap } from "./UserBootstrap";
 
@@ -49,24 +48,10 @@ export function AuthCodeHandler() {
   return null;
 }
 
-function PackageApiAuthBridge() {
-  const token = useAuthToken();
-
-  useEffect(() => {
-    setPackageApiAuthToken(token);
-    return () => {
-      setPackageApiAuthToken(null);
-    };
-  }, [token]);
-
-  return null;
-}
-
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ConvexAuthProvider client={convex} shouldHandleCode={false}>
       <AuthCodeHandler />
-      <PackageApiAuthBridge />
       <UserBootstrap />
       {children}
     </ConvexAuthProvider>

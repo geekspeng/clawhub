@@ -15,7 +15,6 @@ import {
   fetchPluginCatalog,
   fetchPackages,
   getPackageDownloadPath,
-  setPackageApiAuthToken,
 } from "./packageApi";
 
 describe("fetchPackages", () => {
@@ -26,7 +25,6 @@ describe("fetchPackages", () => {
   afterEach(() => {
     getRequestHeadersMock.mockReset();
     getRequestUrlMock.mockReset();
-    setPackageApiAuthToken(null);
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     vi.unstubAllEnvs();
@@ -195,29 +193,6 @@ describe("fetchPackages", () => {
     await fetchPackageDetail("private-plugin");
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://app.example/api/v1/packages/private-plugin");
-  });
-
-  it("forwards the browser auth token on package detail fetches", async () => {
-    vi.stubEnv("VITE_CONVEX_URL", "https://registry.example");
-    vi.stubGlobal("window", {
-      location: { origin: "https://app.example" },
-    });
-    setPackageApiAuthToken("jwt-123");
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ package: null, owner: null }), { status: 200 }),
-    );
-
-    await fetchPackageDetail("private-plugin");
-
-    const [, requestInit] = fetchMock.mock.calls[0] ?? [];
-    expect(requestInit).toEqual(
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Accept: "application/json",
-          authorization: "Bearer jwt-123",
-        }),
-      }),
-    );
   });
 
   it("falls back to the site URL when SSR request context is unavailable", async () => {

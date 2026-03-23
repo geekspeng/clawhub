@@ -6,8 +6,6 @@ import type {
 import { ApiRoutes } from "clawhub-schema";
 import { getRequiredRuntimeEnv, getRuntimeEnv } from "./runtimeEnv";
 
-let browserPackageApiAuthToken: string | null = null;
-
 export type PackageListItem = {
   name: string;
   displayName: string;
@@ -181,10 +179,6 @@ export function getPackageDownloadPath(name: string, version?: string | null) {
   return `${path}?version=${encodeURIComponent(version)}`;
 }
 
-export function setPackageApiAuthToken(token: string | null | undefined) {
-  browserPackageApiAuthToken = token?.trim() ? token : null;
-}
-
 async function getForwardedHeaders() {
   if (typeof window !== "undefined" || !import.meta.env.SSR) return {};
   try {
@@ -208,18 +202,12 @@ async function getForwardedHeaders() {
 
 async function packageFetch(url: URL, accept: string) {
   const forwarded = await getForwardedHeaders();
-  const authorization =
-    forwarded.authorization ??
-    (typeof window !== "undefined" && browserPackageApiAuthToken
-      ? `Bearer ${browserPackageApiAuthToken}`
-      : undefined);
   return await fetch(url.toString(), {
     method: "GET",
     credentials: "include",
     headers: {
       Accept: accept,
       ...forwarded,
-      ...(authorization ? { authorization } : {}),
     },
   });
 }
