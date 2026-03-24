@@ -8,6 +8,8 @@ read_when:
 
 # Security + Moderation
 
+See also: [acceptable-usage.md](./acceptable-usage.md) for the marketplace policy on prohibited skill categories.
+
 ## Roles + permissions
 
 - user: upload skills/souls (subject to GitHub age gate), report skills/comments.

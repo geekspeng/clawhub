@@ -118,6 +118,7 @@ export default function Header() {
           >
             Search
           </Link>
+          {isSoulMode ? null : <Link to="/about">About</Link>}
           {me ? <Link to="/stars">Stars</Link> : null}
           {isStaff ? (
             <Link to="/management" search={{ skill: undefined }}>
@@ -201,6 +202,11 @@ export default function Header() {
                     Search
                   </Link>
                 </DropdownMenuItem>
+                {isSoulMode ? null : (
+                  <DropdownMenuItem asChild>
+                    <Link to="/about">About</Link>
+                  </DropdownMenuItem>
+                )}
                 {me ? (
                   <DropdownMenuItem asChild>
                     <Link to="/stars">Stars</Link>
