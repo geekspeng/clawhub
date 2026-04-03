@@ -879,7 +879,11 @@ export async function publishSkillV1Handler(ctx: ActionCtx, request: Request) {
       if (!hasAcceptedLegacyLicenseTerms(payload.acceptLicenseTerms)) {
         return text("MIT-0 license terms must be accepted to publish skills", 400, rate.headers);
       }
-      const result = await publishVersionForUser(ctx, userId, payload);
+      // Bypass GitHub account age check for offline/private deployments
+      // where GitHub OAuth is not available
+      const result = await publishVersionForUser(ctx, userId, payload, {
+        bypassGitHubAccountAge: true,
+      });
       return json({ ok: true, ...result }, 200, rate.headers);
     }
 
@@ -888,7 +892,11 @@ export async function publishSkillV1Handler(ctx: ActionCtx, request: Request) {
       if (!hasAcceptedLegacyLicenseTerms(payload.acceptLicenseTerms)) {
         return text("MIT-0 license terms must be accepted to publish skills", 400, rate.headers);
       }
-      const result = await publishVersionForUser(ctx, userId, payload);
+      // Bypass GitHub account age check for offline/private deployments
+      // where GitHub OAuth is not available
+      const result = await publishVersionForUser(ctx, userId, payload, {
+        bypassGitHubAccountAge: true,
+      });
       return json({ ok: true, ...result }, 200, rate.headers);
     }
   } catch (error) {

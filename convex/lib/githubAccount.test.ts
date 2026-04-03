@@ -87,6 +87,29 @@ describe("requireGitHubAccountAge", () => {
     ).rejects.toThrow(/GitHub account must be at least 14 days old/i);
   });
 
+  it("allows users without GitHub account (e.g., Google users)", async () => {
+    vi.useFakeTimers();
+    const now = new Date("2026-02-02T12:00:00Z");
+    vi.setSystemTime(now);
+
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "users:1",
+        githubCreatedAt: undefined,
+      })
+      .mockResolvedValueOnce(null); // No GitHub provider account ID
+    const runMutation = vi.fn();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Should not throw error for users without GitHub account
+    await requireGitHubAccountAge({ runQuery, runMutation } as never, "users:1" as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(runMutation).not.toHaveBeenCalled();
+  });
+
   it("fetches githubCreatedAt when missing (by providerAccountId)", async () => {
     vi.useFakeTimers();
     const now = new Date("2026-02-02T12:00:00Z");
@@ -120,25 +143,6 @@ describe("requireGitHubAccountAge", () => {
       userId: "users:1",
       githubCreatedAt: Date.parse("2020-01-01T00:00:00Z"),
     });
-  });
-
-  it("rejects when providerAccountId is missing", async () => {
-    const runQuery = vi
-      .fn()
-      .mockResolvedValueOnce({
-        _id: "users:1",
-        githubCreatedAt: undefined,
-      })
-      .mockResolvedValueOnce(null);
-    const runMutation = vi.fn();
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    await expect(
-      requireGitHubAccountAge({ runQuery, runMutation } as never, "users:1" as never),
-    ).rejects.toThrow(/GitHub account required/i);
-
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects when providerAccountId is invalid", async () => {

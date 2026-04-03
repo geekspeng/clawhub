@@ -99,7 +99,7 @@ export async function publishVersionForUser(
   }
 
   if (!options.bypassGitHubAccountAge) {
-    await requireGitHubAccountAge(ctx, userId);
+    await requireGitHubAccountAge(ctx, userId, { bypass: options.bypassGitHubAccountAge });
   }
   const existingSkill = (await ctx.runQuery(internal.skills.getSkillBySlugInternal, {
     slug,

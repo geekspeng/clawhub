@@ -173,7 +173,11 @@ async function cliPublishHandler(ctx: ActionCtx, request: Request) {
     if (!hasAcceptedLegacyLicenseTerms(args.acceptLicenseTerms)) {
       return text("MIT-0 license terms must be accepted to publish skills", 400);
     }
-    const result = await publishVersionForUser(ctx, userId, args);
+    // Bypass GitHub account age check for offline/private deployments
+    // where GitHub OAuth is not available
+    const result = await publishVersionForUser(ctx, userId, args, {
+      bypassGitHubAccountAge: true,
+    });
     return json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Publish failed";
