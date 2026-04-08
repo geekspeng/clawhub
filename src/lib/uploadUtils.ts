@@ -1,4 +1,5 @@
 import { isTextContentType, TEXT_FILE_EXTENSION_SET } from "clawhub-schema";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { getUserFacingConvexError } from "./convexError";
 
 export async function uploadFile(uploadUrl: string, file: File) {
@@ -19,9 +20,12 @@ export async function hashFile(file: File) {
     typeof file.arrayBuffer === "function"
       ? await file.arrayBuffer()
       : await new Response(file).arrayBuffer();
-  const hash = await crypto.subtle.digest("SHA-256", new Uint8Array(buffer));
-  const bytes = new Uint8Array(hash);
-  return Array.from(bytes)
+
+  // Use pure JS hash library that works in both browser and Node.js
+  const bytes = new Uint8Array(buffer);
+  const hash = sha256(bytes);
+  // Convert to hex string
+  return Array.from(hash)
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }
