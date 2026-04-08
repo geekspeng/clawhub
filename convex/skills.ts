@@ -294,8 +294,8 @@ const TRUSTED_PUBLISHER_SKILL_THRESHOLD = 10;
 const LOW_TRUST_BURST_THRESHOLD_PER_HOUR = 8;
 const OWNER_ACTIVITY_SCAN_LIMIT = 500;
 const NEW_SKILL_RATE_LIMITS = {
-  lowTrust: { perHour: 5, perDay: 20 },
-  trusted: { perHour: 20, perDay: 80 },
+  lowTrust: { perHour: 50, perDay: 200 },
+  trusted: { perHour: 200, perDay: 800 },
 } as const;
 
 const SORT_INDEXES = {
