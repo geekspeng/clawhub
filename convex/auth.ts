@@ -1,10 +1,9 @@
-import GitHub from "@auth/core/providers/github";
+import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 import type { GenericMutationCtx } from "convex/server";
 import { ConvexError } from "convex/values";
 import { internal } from "./_generated/api";
 import type { DataModel, Id } from "./_generated/dataModel";
-import { shouldScheduleGitHubProfileSync } from "./lib/githubProfileSync";
 
 export const BANNED_REAUTH_MESSAGE =
   "Your account has been banned for uploading malicious skills. If you believe this is a mistake, please contact security@openclaw.ai and we will work with you to restore access.";
@@ -59,29 +58,24 @@ export async function handleDeletedUserSignIn(
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID ?? "",
-      clientSecret: process.env.AUTH_GITHUB_SECRET ?? "",
+    Password({
+      id: "password",
       profile(profile) {
+        const email = profile.email as string;
         return {
-          id: String(profile.id),
-          name: profile.login,
-          email: profile.email ?? undefined,
-          image: profile.avatar_url,
+          email: email,
+          name: email,
         };
       },
     }),
   ],
   callbacks: {
     /**
-     * Block sign-in for deleted/deactivated users and sync GitHub profile.
+     * Block sign-in for deleted/deactivated users.
      *
      * Performance note: This callback runs on every OAuth sign-in, but the
      * audit log query ONLY executes when a legacy deleted user attempts to sign
      * in (user.deletedAt is set). For active users, this is a single field check.
-     *
-     * The GitHub profile sync is scheduled as a background action to handle
-     * the case where a user renames their GitHub account (fixes #303).
      */
     async afterUserCreatedOrUpdated(ctx, args) {
       const user = await ctx.db.get(args.userId);
@@ -89,15 +83,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       await ctx.scheduler.runAfter(0, internal.publishers.ensurePersonalPublisherInternal, {
         userId: args.userId,
       });
-
-      // Schedule GitHub profile sync to handle username renames (fixes #303)
-      // This runs as a background action so it doesn't block sign-in
-      const now = Date.now();
-      if (shouldScheduleGitHubProfileSync(user, now)) {
-        await ctx.scheduler.runAfter(0, internal.users.syncGitHubProfileAction, {
-          userId: args.userId,
-        });
-      }
     },
   },
 });

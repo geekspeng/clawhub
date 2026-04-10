@@ -13,7 +13,7 @@ function Settings() {
   const me = useQuery(api.users.me);
   const updateProfile = useMutation(api.users.updateProfile);
   const deleteAccount = useMutation(api.users.deleteAccount);
-  const tokens = useQuery(api.tokens.listMine) as
+  const tokens = useQuery(api.tokens.listMine, me ? {} : "skip") as
     | Array<{
         _id: Id<"apiTokens">;
         label: string;
@@ -25,7 +25,7 @@ function Settings() {
     | undefined;
   const createToken = useMutation(api.tokens.create);
   const revokeToken = useMutation(api.tokens.revoke);
-  const publisherMemberships = useQuery(api.publishers.listMine) as
+  const publisherMemberships = useQuery(api.publishers.listMine, me ? {} : "skip") as
     | Array<{
         publisher: {
           _id: Id<"publishers">;

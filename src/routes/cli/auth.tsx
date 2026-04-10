@@ -1,11 +1,9 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../../convex/_generated/api";
-import { getUserFacingConvexError } from "../../lib/convexError";
 import { getClawHubSiteUrl, normalizeClawHubSiteOrigin } from "../../lib/site";
-import { setAuthError, useAuthError } from "../../lib/useAuthError";
+import { useAuthError } from "../../lib/useAuthError";
 import { useAuthStatus } from "../../lib/useAuthStatus";
 
 export const Route = createFileRoute("/cli/auth")({
@@ -13,8 +11,7 @@ export const Route = createFileRoute("/cli/auth")({
 });
 
 function CliAuth() {
-  const { isAuthenticated, isLoading, me } = useAuthStatus();
-  const { signIn } = useAuthActions();
+  const { isAuthenticated, me } = useAuthStatus();
   const { error: authError, clear: clearAuthError } = useAuthError();
   const createToken = useMutation(api.tokens.create);
 
@@ -32,7 +29,6 @@ function CliAuth() {
   const label =
     (decodeLabel(search.label_b64) ?? search.label ?? "CLI token").trim() || "CLI token";
   const state = typeof search.state === "string" ? search.state.trim() : "";
-  const signInRedirectTo = getCurrentRelativeUrl();
 
   const safeRedirect = useMemo(() => isAllowedRedirectUri(redirectUri), [redirectUri]);
   const registry = useMemo(() => {
@@ -127,22 +123,22 @@ function CliAuth() {
               </button>
             </p>
           ) : null}
-          <button
-            className="btn btn-primary"
-            type="button"
-            disabled={isLoading}
-            onClick={() => {
-              clearAuthError();
-              void signIn(
-                "github",
-                signInRedirectTo ? { redirectTo: signInRedirectTo } : undefined,
-              ).catch((error) => {
-                setAuthError(getUserFacingConvexError(error, "Sign in failed. Please try again."));
-              });
-            }}
-          >
-            Sign in with GitHub
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <p className="section-subtitle">Please sign in using the main site authentication.</p>
+            <a
+              href="/"
+              className="btn btn-primary"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                textDecoration: "none",
+              }}
+            >
+              Go to Sign In
+            </a>
+          </div>
         </div>
       </main>
     );
@@ -194,9 +190,4 @@ function decodeLabel(value: string | undefined) {
   } catch {
     return null;
   }
-}
-
-function getCurrentRelativeUrl() {
-  if (typeof window === "undefined") return "/";
-  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
