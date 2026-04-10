@@ -1,0 +1,51 @@
+# ClawHub 前端应用 Dockerfile - 零代码修改方案
+# 使用启动脚本在运行时替换配置，无需修改应用源代码
+
+FROM oven/bun:1.3.10 AS builder
+
+WORKDIR /app
+
+# 构建时占位符（运行时通过 entrypoint 脚本替换）
+ARG VITE_CONVEX_URL=http://localhost:3210
+ARG VITE_CONVEX_SITE_URL=http://localhost:3211
+ENV VITE_CONVEX_URL=$VITE_CONVEX_URL
+ENV VITE_CONVEX_SITE_URL=$VITE_CONVEX_SITE_URL
+
+# 复制依赖文件（利用 Docker 缓存）
+COPY package.json bun.lock ./
+COPY packages ./packages
+
+# 安装所有依赖（包括 devDependencies，用于构建）
+RUN bun install --frozen-lockfile
+
+# 复制源代码
+COPY . .
+
+# 构建应用（使用默认值，启动时替换）
+RUN bun run build
+
+# 生产运行阶段
+FROM oven/bun:1.3.10
+
+WORKDIR /app
+
+# 设置生产环境
+ENV NODE_ENV=production
+
+# 复制构建产物（注意 .output/ 的斜杠，表示复制目录内容而不是目录本身）
+# server/ 已包含打包好的依赖，无需 node_modules
+COPY --from=builder /app/.output/ ./
+
+# 复制配置替换脚本（零代码修改的核心）
+COPY entrypoint-replace.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint-replace.sh
+
+# 暴露端口
+EXPOSE 3000
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# 使用配置替换启动脚本（零代码修改方案）
+ENTRYPOINT ["entrypoint-replace.sh"]

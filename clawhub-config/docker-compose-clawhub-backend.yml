@@ -1,0 +1,12 @@
+services:
+  convex-backend:
+    image: clawhub-convex-backend:latest
+    container_name: clawhub-convex-deploy
+    env_file:
+      - .env.local
+    # 一次性运行，部署完成后退出
+    # 如需重新部署，使用: docker-compose -f docker-compose-clawhub-backend.yml run --rm convex-backend
+    #
+    # .env.local 中需要配置:
+    # CONVEX_SELF_HOSTED_URL=https://your-self-hosted-convex.example.com
+    # CONVEX_SELF_HOSTED_ADMIN_KEY=your-admin-key-here

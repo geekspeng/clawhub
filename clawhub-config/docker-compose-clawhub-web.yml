@@ -1,0 +1,15 @@
+services:
+  web:
+    image: clawhub-web:latest
+    env_file:
+      - .env.local
+    container_name: clawhub-web
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
